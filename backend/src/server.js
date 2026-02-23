@@ -374,25 +374,30 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE TABLE IF NOT EXISTS room_members (
-      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  CREATE TABLE IF NOT EXISTS room_members (
+  id TEXT PRIMARY KEY,
+  room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
 
-      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-      bot_id TEXT REFERENCES bots(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  bot_id TEXT REFERENCES bots(id) ON DELETE CASCADE,
 
-      mic_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-      muted BOOLEAN NOT NULL DEFAULT FALSE,
+  mic_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  muted BOOLEAN NOT NULL DEFAULT FALSE,
 
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-      -- one of user_id or bot_id must be present; enforced via CHECK:
-      CHECK (
-        (user_id IS NOT NULL AND bot_id IS NULL)
-        OR (user_id IS NULL AND bot_id IS NOT NULL)
-      ),
+  CHECK (
+    (user_id IS NOT NULL AND bot_id IS NULL)
+    OR (user_id IS NULL AND bot_id IS NOT NULL)
+  )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS room_members_room_user_uidx
+ON room_members(room_id, user_id)
+WHERE user_id IS NOT NULL;
 
-      PRIMARY KEY (room_id, COALESCE(user_id, bot_id))
-    );
+CREATE UNIQUE INDEX IF NOT EXISTS room_members_room_bot_uidx
+ON room_members(room_id, bot_id)
+WHERE bot_id IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS room_messages (
       id TEXT PRIMARY KEY,
@@ -643,6 +648,7 @@ app.post("/verify/confirm-phone", requireAuth, async (req, res) => {
 /* ============================= */
 /* ======== ADS REWARDS ======== */
 /* ============================= */
+
 app.post("/ads/points/claim", requireAuth, requireNotBanned, async (req, res) => {
   await ensureAdReset(req.user.id);
 
@@ -727,6 +733,7 @@ app.post("/matchmaking/leave", requireAuth, async (req, res) => {
   await pool.query("DELETE FROM matchmaking_queue WHERE user_id=$1 AND game_type=$2", [req.user.id, gt]);
   return res.json({ ok: true });
 });
+
 /* ============================= */
 /* ===== GAME RESULT + ANTI ===== */
 /* ============================= */
@@ -861,6 +868,7 @@ app.post("/game/result", requireAuth, requireNotBanned, async (req, res) => {
 /* ============================= */
 /* ======= LEADERBOARDS ======== */
 /* ============================= */
+
 app.get("/leaderboard", async (req, res) => {
   const { period = "monthly", limit = 20 } = req.query;
 
@@ -1111,6 +1119,7 @@ app.get("/chat/dm/history", requireAuth, async (req, res) => {
 /* ============================= */
 /* ============ ROOMS =========== */
 /* ============================= */
+
 function makeJoinCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
@@ -1130,9 +1139,9 @@ app.post("/rooms/create", requireAuth, requireNotBanned, async (req, res) => {
   );
 
   await pool.query(
-    "INSERT INTO room_members (room_id,user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING",
-    [id, req.user.id]
-  );
+  "INSERT INTO room_members (id, room_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING",
+  [uuidv4(), id, req.user.id]
+);
 
   return res.json({ ok: true, roomId: id, joinCode });
 });
@@ -1150,9 +1159,9 @@ app.post("/rooms/join", requireAuth, requireNotBanned, async (req, res) => {
   }
 
   await pool.query(
-    "INSERT INTO room_members (room_id,user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING",
-    [roomId, req.user.id]
-  );
+  "INSERT INTO room_members (id, room_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING",
+  [uuidv4(), roomId, req.user.id]
+);
 
   return res.json({ ok: true });
 });
@@ -1207,10 +1216,14 @@ app.post("/rooms/replace-me-with-bot", requireAuth, async (req, res) => {
     roomId,
     req.user.id,
   ]);
-  await pool.query("INSERT INTO room_members (room_id,bot_id) VALUES ($1,$2)", [
+  await pool.query(
+  "INSERT INTO room_members (id, room_id, bot_id) VALUES ($1,$2,$3)",
+  [
+    uuidv4(),
     roomId,
     botId,
-  ]);
+  ]
+);
 
   return res.json({ ok: true, roomId, botId, botName, difficulty });
 });
