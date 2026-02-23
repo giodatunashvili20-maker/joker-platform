@@ -68,7 +68,8 @@ export default function App() {
   return (
     <div style={{ maxWidth: 420, margin: "20px auto", fontFamily: "system-ui" }}>
       <h2>Card Games</h2>
-
+<div style={{ fontSize: 12, opacity: 0.7 }}>API: {API || "MISSING"}</div>
+      
       {mode !== "profile" && (
         <div style={{ display: "grid", gap: 8 }}>
           <input placeholder="Email"
