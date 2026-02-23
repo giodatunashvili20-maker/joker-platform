@@ -516,18 +516,43 @@ app.post("/auth/register", async (req, res) => {
 });
 
 app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password)
-    return res.status(400).json({ error: "MISSING_FIELDS" });
+  const { email, password } = req.body;
 
-  const r = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
-  if (r.rowCount === 0) return res.status(401).json({ error: "INVALID_LOGIN" });
+  const r = await pool.query(
+    "SELECT * FROM users WHERE email=$1",
+    [email]
+  );
+
+  if (!r.rowCount) {
+    return res.status(400).json({ error: "Invalid credentials" });
+  }
 
   const user = r.rows[0];
-  const ok = await bcrypt.compare(password, user.pass_hash);
-  if (!ok) return res.status(401).json({ error: "INVALID_LOGIN" });
 
-  return res.json({ token: signToken(user.id) });
+  const ok = await bcrypt.compare(password, user.password_hash);
+  if (!ok) {
+    return res.status(400).json({ error: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { id: user.id },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      level: user.level,
+      rank: getRankName(user.level),
+      xp: user.xp_total,
+      points: user.points,
+      crystals: user.crystals
+    }
+  });
 });
 
 /* ============================= */
