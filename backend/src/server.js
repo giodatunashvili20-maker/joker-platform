@@ -50,6 +50,7 @@ function yearKey(d = new Date()) {
   return String(d.getFullYear());
 }
 
+// ISO week key: YYYY-Www
 function weekKey(d = new Date()) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -59,6 +60,10 @@ function weekKey(d = new Date()) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
+/* ============================= */
+/* ========= XP Rules ========== */
+/* ============================= */
+
 function xpDeltaByPlacement(p) {
   if (p === 1) return 100;
   if (p === 2) return 70;
@@ -67,16 +72,19 @@ function xpDeltaByPlacement(p) {
   throw new Error("BAD_PLACEMENT");
 }
 
+// Leaderboard score rules (separate from points)
 function lbDeltaByPlacement(p) {
   if (p === 1) return 15;
   if (p === 2) return 10;
   return 0;
 }
 
+// Level curve
 function xpNeededForNext(level) {
   return Math.floor(200 * Math.pow(level, 1.35));
 }
 
+// Total XP -> Level
 function levelFromXpTotal(xpTotal) {
   let level = 1;
   let remaining = xpTotal;
@@ -87,6 +95,49 @@ function levelFromXpTotal(xpTotal) {
   }
 
   return level;
+}
+
+// XP progress inside current level (for progress bar)
+function xpProgress(xpTotal) {
+  let level = 1;
+  let remaining = xpTotal;
+
+  while (remaining >= xpNeededForNext(level)) {
+    remaining -= xpNeededForNext(level);
+    level += 1;
+  }
+
+  const needed = xpNeededForNext(level);
+  const percent = needed > 0 ? Math.floor((remaining / needed) * 100) : 0;
+
+  return {
+    currentLevelXp: remaining,
+    neededForNext: needed,
+    percent,
+  };
+}
+
+/* ============================= */
+/* ========= Ranks ============= */
+/* ============================= */
+
+const RANKS = [
+  { name: "ახალბედა", minLevel: 1 },
+  { name: "მოსწავლე", minLevel: 5 },
+  { name: "გამოცდილი", minLevel: 9 },
+  { name: "ოსტატი", minLevel: 14 },
+  { name: "დიდოსტატი", minLevel: 19 },
+  { name: "სტრატეგი", minLevel: 25 },
+  { name: "მაესტრო", minLevel: 32 },
+  { name: "ჩემპიონი", minLevel: 40 },
+  { name: "ლეგენდა", minLevel: 49 },
+  { name: "The Joker King", minLevel: 61 },
+];
+
+function getRankName(level) {
+  let best = RANKS[0].name;
+  for (const r of RANKS) if (level >= r.minLevel) best = r.name;
+  return best;
 }
 
 /* ============================= */
@@ -126,8 +177,8 @@ async function initDb() {
 
     CREATE TABLE IF NOT EXISTS leaderboard_scores (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      period_type TEXT NOT NULL,
-      period_key TEXT NOT NULL,
+      period_type TEXT NOT NULL,   -- daily/weekly/monthly/yearly
+      period_key TEXT NOT NULL,    -- YYYY-MM-DD / YYYY-Www / YYYY-MM / YYYY
       score INT NOT NULL DEFAULT 0,
       wins INT NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -137,13 +188,14 @@ async function initDb() {
 }
 
 /* ============================= */
-/* ========= AUTH ============== */
+/* ============ AUTH =========== */
 /* ============================= */
 
 app.post("/auth/register", async (req, res) => {
-  const { email, username, password } = req.body;
-  if (!email || !username || !password)
+  const { email, username, password } = req.body || {};
+  if (!email || !username || !password) {
     return res.status(400).json({ error: "MISSING_FIELDS" });
+  }
 
   const id = uuidv4();
   const pass_hash = await bcrypt.hash(password, 10);
@@ -160,7 +212,10 @@ app.post("/auth/register", async (req, res) => {
 });
 
 app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: "MISSING_FIELDS" });
+  }
 
   const r = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
   if (r.rowCount === 0) return res.status(401).json({ error: "INVALID_LOGIN" });
@@ -173,7 +228,7 @@ app.post("/auth/login", async (req, res) => {
 });
 
 /* ============================= */
-/* ========= PROFILE =========== */
+/* =========== PROFILE ========= */
 /* ============================= */
 
 app.get("/me", requireAuth, async (req, res) => {
@@ -181,7 +236,18 @@ app.get("/me", requireAuth, async (req, res) => {
     "SELECT id,email,username,points,crystals,xp_total,level FROM users WHERE id=$1",
     [req.user.id]
   );
-  return res.json(r.rows[0]);
+  if (r.rowCount === 0) return res.status(404).json({ error: "NOT_FOUND" });
+
+  const me = r.rows[0];
+  const progress = xpProgress(Number(me.xp_total));
+
+  return res.json({
+    ...me,
+    rankName: getRankName(Number(me.level)),
+    xpCurrent: progress.currentLevelXp,
+    xpNeeded: progress.neededForNext,
+    xpPercent: progress.percent,
+  });
 });
 
 /* ============================= */
@@ -189,43 +255,52 @@ app.get("/me", requireAuth, async (req, res) => {
 /* ============================= */
 
 app.post("/game/result", requireAuth, async (req, res) => {
-  const { gameType, placement } = req.body;
+  const { gameType, placement } = req.body || {};
+  const gt = String(gameType || "").toLowerCase();
+  const p = Number(placement);
 
-  if (![1, 2, 3, 4].includes(Number(placement)))
+  if (!["joker", "bura", "nardi", "domino"].includes(gt)) {
+    return res.status(400).json({ error: "BAD_GAME_TYPE" });
+  }
+  if (![1, 2, 3, 4].includes(p)) {
     return res.status(400).json({ error: "BAD_PLACEMENT" });
+  }
 
-  const xpDelta = xpDeltaByPlacement(placement);
-  const lbDelta = lbDeltaByPlacement(placement);
+  const xpDelta = xpDeltaByPlacement(p);
+  const lbDelta = lbDeltaByPlacement(p);
 
-  const userRow = await pool.query(
-    "SELECT xp_total FROM users WHERE id=$1",
-    [req.user.id]
-  );
+  const userRow = await pool.query("SELECT xp_total FROM users WHERE id=$1", [
+    req.user.id,
+  ]);
+  if (userRow.rowCount === 0) return res.status(404).json({ error: "NOT_FOUND" });
 
-  const currentXp = userRow.rows[0].xp_total;
+  const currentXp = Number(userRow.rows[0].xp_total);
   const newXp = Math.max(0, currentXp + xpDelta);
   const newLevel = levelFromXpTotal(newXp);
+  const progress = xpProgress(newXp);
 
   const gameId = uuidv4();
 
   await pool.query(
     "INSERT INTO games (id,user_id,game_type,placement,xp_delta,lb_delta) VALUES ($1,$2,$3,$4,$5,$6)",
-    [gameId, req.user.id, gameType, placement, xpDelta, lbDelta]
+    [gameId, req.user.id, gt, p, xpDelta, lbDelta]
   );
 
-  await pool.query(
-    "UPDATE users SET xp_total=$2, level=$3 WHERE id=$1",
-    [req.user.id, newXp, newLevel]
-  );
+  await pool.query("UPDATE users SET xp_total=$2, level=$3 WHERE id=$1", [
+    req.user.id,
+    newXp,
+    newLevel,
+  ]);
 
+  const now = new Date();
   const periods = [
     { type: "daily", key: todayISO() },
-    { type: "weekly", key: weekKey() },
-    { type: "monthly", key: monthKey() },
-    { type: "yearly", key: yearKey() },
+    { type: "weekly", key: weekKey(now) },
+    { type: "monthly", key: monthKey(now) },
+    { type: "yearly", key: yearKey(now) },
   ];
 
-  for (const p of periods) {
+  for (const per of periods) {
     await pool.query(
       `
       INSERT INTO leaderboard_scores (user_id, period_type, period_key, score, wins)
@@ -236,20 +311,22 @@ app.post("/game/result", requireAuth, async (req, res) => {
         wins = leaderboard_scores.wins + EXCLUDED.wins,
         updated_at = NOW()
       `,
-      [
-        req.user.id,
-        p.type,
-        p.key,
-        lbDelta,
-        placement === 1 ? 1 : 0,
-      ]
+      [req.user.id, per.type, per.key, lbDelta, p === 1 ? 1 : 0]
     );
   }
 
   return res.json({
+    ok: true,
+    gameId,
+    gameType: gt,
+    placement: p,
     xpDelta,
     xpTotal: newXp,
     level: newLevel,
+    rankName: getRankName(newLevel),
+    xpCurrent: progress.currentLevelXp,
+    xpNeeded: progress.neededForNext,
+    xpPercent: progress.percent,
     leaderboardDelta: lbDelta,
   });
 });
@@ -261,13 +338,17 @@ app.post("/game/result", requireAuth, async (req, res) => {
 app.get("/leaderboard", async (req, res) => {
   const { period = "monthly", limit = 20 } = req.query;
 
+  const p = String(period);
+  const lim = Math.max(1, Math.min(200, Number(limit) || 20));
+
   const now = new Date();
   let key;
 
-  if (period === "daily") key = todayISO();
-  else if (period === "weekly") key = weekKey(now);
-  else if (period === "monthly") key = monthKey(now);
-  else key = yearKey(now);
+  if (p === "daily") key = todayISO();
+  else if (p === "weekly") key = weekKey(now);
+  else if (p === "monthly") key = monthKey(now);
+  else if (p === "yearly") key = yearKey(now);
+  else return res.status(400).json({ error: "BAD_PERIOD" });
 
   const r = await pool.query(
     `
@@ -275,13 +356,13 @@ app.get("/leaderboard", async (req, res) => {
     FROM leaderboard_scores l
     JOIN users u ON u.id = l.user_id
     WHERE l.period_type=$1 AND l.period_key=$2
-    ORDER BY l.score DESC
+    ORDER BY l.score DESC, l.wins DESC, u.username ASC
     LIMIT $3
     `,
-    [period, key, limit]
+    [p, key, lim]
   );
 
-  return res.json(r.rows);
+  return res.json({ period: p, key, rows: r.rows });
 });
 
 /* ============================= */
