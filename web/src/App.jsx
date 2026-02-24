@@ -9,16 +9,27 @@ import Game from "./pages/Game.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
 
 function RequireAuth({ children }) {
-  const { isAuthed, loading } = useAuth();
+  const { user, loading } = useAuth();
   const loc = useLocation();
 
-  if (loading) return <div className="wrap"><div className="card">Loading...</div></div>;
-  if (!isAuthed) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  if (loading) {
+    return (
+      <div className="wrap">
+        <div className="card">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  }
+
   return children;
 }
 
 export default function App() {
-  const { isAuthed, user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
+  const isAuthed = !!user;
 
   return (
     <div className="wrap">
@@ -55,19 +66,46 @@ export default function App() {
           <div className="row">
             <div>
               <div className="h3">{user.username}</div>
-              <div className="muted">Points: <b>{user.points ?? 0}</b> · Crystals: <b>{user.crystals ?? 0}</b></div>
+              <div className="muted">
+                Points: <b>{user.points ?? 0}</b> · Crystals: <b>{user.crystals ?? 0}</b>
+              </div>
             </div>
-            <div className="pill">Tier: <b>{user.tier || "beginner"}</b></div>
+            <div className="pill">
+              Tier: <b>{user.tier || "beginner"}</b>
+            </div>
           </div>
         </div>
       ) : null}
 
       <Routes>
-        <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
-        <Route path="/game" element={<RequireAuth><Game /></RequireAuth>} />
-        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
-        <Route path="/login" element={isAuthed ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/register" element={isAuthed ? <Navigate to="/" replace /> : <Register />} />
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <Home />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/game"
+          element={
+            <RequireAuth>
+              <Game />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <RequireAuth>
+              <Leaderboard />
+            </RequireAuth>
+          }
+        />
+
+        <Route path="/login" element={loading ? null : isAuthed ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={loading ? null : isAuthed ? <Navigate to="/" replace /> : <Register />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
