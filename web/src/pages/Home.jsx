@@ -9,6 +9,7 @@ function DotWait({ waiting = 0 }) {
   // 4 ბურთულა: waiting რაოდენობას ვაკაპებთ 0..4-ზე
   const filled = Math.max(0, Math.min(4, Number(waiting) || 0));
   const dots = useMemo(() => Array.from({ length: 4 }, (_, i) => i < filled), [filled]);
+
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
       {dots.map((on, i) => (
@@ -132,6 +133,10 @@ export default function Home() {
   const mode = jokerTab === "ერთიანები" ? "ones" : "nines";
   const deleteScope = lastTakenDeletes ? "last" : "all";
 
+  function mapGameType(tab) {
+    return tab === "ჯოკერი" ? "joker" : tab === "ბურა" ? "bura" : tab === "ნარდი" ? "nardi" : "domino";
+  }
+
   async function joinQueue() {
     setErr("");
     setJoining(true);
@@ -139,13 +144,14 @@ export default function Home() {
       const r = await api("/matchmaking/join", {
         method: "POST",
         body: {
-          gameType: gameTab === "ჯოკერი" ? "joker" : gameTab === "ბურა" ? "bura" : gameTab === "ნარდი" ? "nardi" : "domino",
+          gameType: mapGameType(gameTab),
           mode: gameTab === "ჯოკერი" ? mode : "default",
           xishte,
           deleteScope,
         },
         auth: true,
       });
+
       setInQueue(true);
       setWaiting(r?.waiting ?? 0);
       setQueueTier(r?.tier ?? null);
@@ -163,11 +169,10 @@ export default function Home() {
     try {
       await api("/matchmaking/leave", {
         method: "POST",
-        body: {
-          gameType: gameTab === "ჯოკერი" ? "joker" : gameTab === "ბურა" ? "bura" : gameTab === "ნარდი" ? "nardi" : "domino",
-        },
+        body: { gameType: mapGameType(gameTab) },
         auth: true,
       });
+
       setInQueue(false);
       setWaiting(0);
       setQueueTier(null);
@@ -184,14 +189,12 @@ export default function Home() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 900 }}>Card Games</div>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            {me ? `${me.username} · ${me.rankName}` : ""}
-          </div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>{me ? `${me.username} · ${me.rankName}` : ""}</div>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <div style={{ fontSize: 12, opacity: 0.75 }}>
-            ქულა: <b>{me?.points ?? 0}</b>
+            ქულა: <b>{me?.points ?? 0}</b> · კრისტალები: <b>{me?.crystals ?? 0}</b>
           </div>
         </div>
       </div>
@@ -277,117 +280,4 @@ export default function Home() {
               />
 
               {queueTier ? (
-                <div style={{ fontSize: 12, opacity: 0.75 }}>
-                  Tier: <b>{queueTier}</b>
-                </div>
-              ) : null}
-
-              {err ? <div style={{ color: "crimson", fontWeight: 700 }}>{err}</div> : null}
-
-              <div style={{ display: "flex", gap: 10 }}>
-                {!inQueue ? (
-                  <button
-                    disabled={joining}
-                    onClick={joinQueue}
-                    style={{
-                      flex: 1,
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: "1px solid #111",
-                      background: "#111",
-                      color: "#fff",
-                      fontWeight: 900,
-                      cursor: joining ? "not-allowed" : "pointer",
-                      opacity: joining ? 0.7 : 1,
-                    }}
-                  >
-                    {joining ? "შეყვანა..." : "თამაში"}
-                  </button>
-                ) : (
-                  <button
-                    disabled={joining}
-                    onClick={leaveQueue}
-                    style={{
-                      flex: 1,
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: "1px solid #E6E6E6",
-                      background: "#fff",
-                      color: "#111",
-                      fontWeight: 900,
-                      cursor: joining ? "not-allowed" : "pointer",
-                      opacity: joining ? 0.7 : 1,
-                    }}
-                  >
-                    {joining ? "გასვლა..." : "გასვლა"}
-                  </button>
-                )}
-
-                <button
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid #E6E6E6",
-                    background: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  წესები
-                </button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Watch ads for points */}
-          <Card>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div>
-                <div style={{ fontWeight: 900 }}>ქულები</div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Watch ad 1/10</div>
-              </div>
-              <button
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 14,
-                  border: "1px solid #E6E6E6",
-                  background: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Watch Ad
-              </button>
-            </div>
-          </Card>
-
-          {/* Shop block */}
-          <Card>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div>
-                <div style={{ fontWeight: 900 }}>მაღაზია</div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>
-                  კრისტალები: <b>{me?.crystals ?? 0}</b> · Watch ad 2/5
-                </div>
-              </div>
-
-              <button
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 14,
-                  border: "1px solid #111",
-                  background: "#111",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Open
-              </button>
-            </div>
-          </Card>
-        </>
-      )}
-    </div>
-  );
-      }
+                <div style={{ fontSize:
