@@ -18,7 +18,6 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     }
-
     loadMe();
   }, []);
 
@@ -29,7 +28,13 @@ export function AuthProvider({ children }) {
     });
 
     localStorage.setItem("token", res.token);
-    setUser(res.user);
+
+    // ⚠️ ბევრი backend /auth/login-ზე user არ აბრუნებს.
+    // ამიტომ უფრო სტაბილურია /me-ით წამოღება:
+    const me = await api("/me", { auth: true });
+    setUser(me);
+
+    return me;
   }
 
   async function register(email, username, password) {
@@ -39,7 +44,11 @@ export function AuthProvider({ children }) {
     });
 
     localStorage.setItem("token", res.token);
-    setUser(res.user);
+
+    const me = await api("/me", { auth: true });
+    setUser(me);
+
+    return me;
   }
 
   function logout() {
@@ -48,20 +57,13 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        register,
-        logout,
-        loading,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
-    }
+  const ctx = useContext(AuthContext);
+  return ctx;
+}
