@@ -6,71 +6,56 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
-  // booting = აპი სტარტზე ამოწმებს token/me-ს
-  const [booting, setBooting] = useState(true);
-
-  // loading = login/register პროცესის დროს
-  const [loading, setLoading] = useState(false);
+  // loading = სანამ აპი ცდილობს გაიგოს უკვე ლოგინში ვართ თუ არა
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  async function loadMe() {
-    const token = localStorage.getItem("token");
+    async function loadMe() {
+      const token = localStorage.getItem("token");
 
-    if (!token) {
-      setUser(null);
-      setBooting(false);
-      return;
+      // თუ token არ არის — უბრალოდ ვასრულებთ boot-ს
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // token არის -> ვთხოვთ /me-ს
+        const me = await api("/me", { auth: true });
+        setUser(me);
+      } catch (e) {
+        // token არასწორია ან expired -> ვშლით
+        localStorage.removeItem("token");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    try {
-      const me = await api("/me", { auth: true });
-
-      alert("ME RESPONSE: " + JSON.stringify(me));
-
-      setUser(me);
-    } catch (e) {
-      alert("ME ERROR: " + e.message);
-
-      localStorage.removeItem("token");
-      setUser(null);
-    } finally {
-      setBooting(false);
-    }
-  }
-
-  loadMe();
-}, []);
+    loadMe();
+  }, []);
 
   async function login(email, password) {
-    setLoading(true);
-    try {
-      const res = await api("/auth/login", {
-        method: "POST",
-        body: { email, password },
-      });
+    const res = await api("/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
 
-      localStorage.setItem("token", res.token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setLoading(false);
-    }
+    // ელოდება რომ backend დააბრუნებს { token, user }
+    localStorage.setItem("token", res.token);
+    setUser(res.user);
   }
 
   async function register(email, username, password) {
-    setLoading(true);
-    try {
-      const res = await api("/auth/register", {
-        method: "POST",
-        body: { email, username, password },
-      });
+    const res = await api("/auth/register", {
+      method: "POST",
+      body: { email, username, password },
+    });
 
-      localStorage.setItem("token", res.token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setLoading(false);
-    }
+    // ელოდება რომ backend დააბრუნებს { token, user }
+    localStorage.setItem("token", res.token);
+    setUser(res.user);
   }
 
   function logout() {
@@ -82,11 +67,10 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        loading,
         login,
         register,
         logout,
-        loading, // ✅ მხოლოდ action loading
-        booting, // ✅ initial check
       }}
     >
       {children}
@@ -97,3 +81,4 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+```0
