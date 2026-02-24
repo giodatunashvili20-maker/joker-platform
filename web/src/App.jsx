@@ -9,30 +9,28 @@ import Game from "./pages/Game.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
 
 function RequireAuth({ children }) {
-  const { user, loading } = useAuth();
+  const { isAuthed, loading } = useAuth();
   const loc = useLocation();
 
   if (loading) {
     return (
-      <div className="wrap">
-        <div className="card">Loading...</div>
+      <div className="shell">
+        <div className="card">
+          <div className="bd">Loading...</div>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
-  }
-
+  if (!isAuthed) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
   return children;
 }
 
 export default function App() {
-  const { user, logout, loading } = useAuth();
-  const isAuthed = !!user;
+  const { isAuthed, user, logout } = useAuth();
 
   return (
-    <div className="wrap">
+    <div className="shell">
       <header className="topbar">
         <div className="brand">
           <div className="logo">♠</div>
@@ -48,9 +46,7 @@ export default function App() {
               <Link to="/">Home</Link>
               <Link to="/game">Game</Link>
               <Link to="/leaderboard">Leaderboard</Link>
-              <button className="btn" onClick={logout}>
-                Logout
-              </button>
+              <button className="watchBtn" onClick={logout}>Logout</button>
             </>
           ) : (
             <>
@@ -65,47 +61,25 @@ export default function App() {
         <div className="card slim">
           <div className="row">
             <div>
-              <div className="h3">{user.username}</div>
-              <div className="muted">
-                Points: <b>{user.points ?? 0}</b> · Crystals: <b>{user.crystals ?? 0}</b>
+              <div className="h3" style={{ fontSize: 18, margin: 0 }}>{user.username}</div>
+              <div className="muted" style={{ fontSize: 12 }}>
+                ქულები: <b style={{ color: "var(--text)" }}>{user.points ?? 0}</b> · კრისტალები:{" "}
+                <b style={{ color: "var(--text)" }}>{user.crystals ?? 0}</b>
               </div>
             </div>
             <div className="pill">
-              Tier: <b>{user.tier || "beginner"}</b>
+              Tier: <strong>{user.tier || "beginner"}</strong>
             </div>
           </div>
         </div>
       ) : null}
 
       <Routes>
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/game"
-          element={
-            <RequireAuth>
-              <Game />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/leaderboard"
-          element={
-            <RequireAuth>
-              <Leaderboard />
-            </RequireAuth>
-          }
-        />
-
-        <Route path="/login" element={loading ? null : isAuthed ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/register" element={loading ? null : isAuthed ? <Navigate to="/" replace /> : <Register />} />
-
+        <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="/game" element={<RequireAuth><Game /></RequireAuth>} />
+        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        <Route path="/login" element={isAuthed ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={isAuthed ? <Navigate to="/" replace /> : <Register />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
