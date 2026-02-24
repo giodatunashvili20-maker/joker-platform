@@ -529,7 +529,7 @@ app.post("/auth/login", async (req, res) => {
 
   const user = r.rows[0];
 
-  const ok = await bcrypt.compare(password, user.password_hash);
+  const ok = await bcrypt.compare(password, user.pass_hash);
   if (!ok) {
     return res.status(400).json({ error: "Invalid credentials" });
   }
