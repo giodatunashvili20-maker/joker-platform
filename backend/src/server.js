@@ -517,7 +517,9 @@ app.post("/auth/register", async (req, res) => {
 
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
-
+if (!email || !password) {
+  return res.status(400).json({ error: "MISSING_FIELDS" });
+}
   const r = await pool.query(
     "SELECT * FROM users WHERE email=$1",
     [email]
@@ -534,11 +536,7 @@ app.post("/auth/login", async (req, res) => {
     return res.status(400).json({ error: "Invalid credentials" });
   }
 
-  const token = jwt.sign(
-    { id: user.id },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  const token = signToken(user.id);
 
   return res.json({
     token,
