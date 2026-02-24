@@ -1,47 +1,86 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "./api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem("token") || "");
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const isAuthed = !!token;
+
+  async function refreshMe(t = token) {
+    if (!t) {
+      setUser(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const me = await api.me(t);
+      setUser(me);
+    } catch (e) {
+      // ტოკენი ცუდია/დაიძველა
+      localStorage.removeItem("token");
+      setToken("");
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function login(email, password) {
+    setLoading(true);
+    try {
+      const data = await api.login({ email, password });
+      // backend აბრუნებს {token}
+      const t = data?.token;
+      if (!t) throw new Error("Token missing");
+      localStorage.setItem("token", t);
+      setToken(t);
+      await refreshMe(t);
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function register(email, username, password) {
+    setLoading(true);
+    try {
+      const data = await api.register({ email, username, password });
+      const t = data?.token;
+      if (!t) throw new Error("Token missing");
+      localStorage.setItem("token", t);
+      setToken(t);
+      await refreshMe(t);
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("token");
+    setToken("");
+    setUser(null);
+  }
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    api.get("/me")
-      .then(res => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem("token");
-        setUser(null);
-      });
+    refreshMe(token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (email, password) => {
-    const res = await api.post("/login", { email, password });
-    localStorage.setItem("token", res.data.token);
-
-    const me = await api.get("/me");
-    setUser(me.data);
-  };
-
-  const register = async (email, username, password) => {
-    await api.post("/register", { email, username, password });
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ token, user, isAuthed, loading, login, register, logout, refreshMe }),
+    [token, user, isAuthed, loading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }
