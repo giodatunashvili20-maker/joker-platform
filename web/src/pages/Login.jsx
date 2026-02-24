@@ -27,6 +27,9 @@ export default function Login() {
     <div className="card">
       <div className="h3">Login</div>
       <p className="muted">შედი ანგარიშზე</p>
+      <div className="muted" style={{ marginBottom: 10 }}>
+  loading: <b>{String(loading)}</b> | token: <b>{String(!!localStorage.getItem("token"))}</b>
+</div>
 
       <form className="form" onSubmit={onSubmit}>
         <div>
