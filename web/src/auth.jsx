@@ -13,33 +13,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function loadMe() {
-      const token = localStorage.getItem("token");
+  async function loadMe() {
+    const token = localStorage.getItem("token");
 
-      // ✅ თუ token არ არსებობს, ნუ გამოიძახებ /me-ს საერთოდ
-      if (!token) {
-        setUser(null);
-        setBooting(false);
-        return;
-      }
+    if (!token) {
+      setUser(null);
+      setBooting(false);
+      return;
+    }
 
-      try {
-  const me = await api("/me", { auth: true });
+    try {
+      const me = await api("/me", { auth: true });
 
-  alert("ME RESPONSE: " + JSON.stringify(me)); // 👈 ეს დაამატე
+      alert("ME RESPONSE: " + JSON.stringify(me));
 
-  setUser(me);
-} catch (e) {
-  alert("ME ERROR: " + e.message); // 👈 ესეც
+      setUser(me);
+    } catch (e) {
+      alert("ME ERROR: " + e.message);
 
-  localStorage.removeItem("token");
-  setUser(null);
-} finally {
-  setBooting(false);
-}
+      localStorage.removeItem("token");
+      setUser(null);
+    } finally {
+      setBooting(false);
+    }
+  }
 
-    loadMe();
-  }, []);
+  loadMe();
+}, []);
 
   async function login(email, password) {
     setLoading(true);
