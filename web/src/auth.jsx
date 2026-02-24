@@ -24,16 +24,19 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const me = await api("/me", { auth: true });
-        setUser(me);
-      } catch (e) {
-        // token არასწორია ან /me ვერ მივიდა
-        localStorage.removeItem("token");
-        setUser(null);
-      } finally {
-        setBooting(false);
-      }
-    }
+  const me = await api("/me", { auth: true });
+
+  alert("ME RESPONSE: " + JSON.stringify(me)); // 👈 ეს დაამატე
+
+  setUser(me);
+} catch (e) {
+  alert("ME ERROR: " + e.message); // 👈 ესეც
+
+  localStorage.removeItem("token");
+  setUser(null);
+} finally {
+  setBooting(false);
+}
 
     loadMe();
   }, []);
