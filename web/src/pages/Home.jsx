@@ -279,5 +279,16 @@ export default function Home() {
                 }
               />
 
-              {queueTier ? (
-                <div style={{ fontSize:
+              />
+            
+{queueTier ? (
+  <div style={{ fontSize: 12, opacity: 0.75 }}>
+    Tier: <b>{queueTier}</b>
+  </div>
+) : null}
+
+{err ? (
+  <div style={{ color: "crimson", fontWeight: 700 }}>
+    {err}
+  </div>
+) : null}
