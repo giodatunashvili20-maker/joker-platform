@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 
 export default function Login() {
-  const { login, loading } = useAuth();
+  const Hr = useAuth(); // სპეციალურად Hr დავარქვი რომ დავინახოთ რას აბრუნებს
   const nav = useNavigate();
   const loc = useLocation();
 
@@ -15,7 +15,13 @@ export default function Login() {
     e.preventDefault();
     setErr("");
     try {
-      await login(email.trim(), password);
+      // debug
+      if (!Hr || typeof Hr.login !== "function") {
+        throw new Error("Hr.login is not a function (AuthProvider/useAuth არ მუშაობს სწორად)");
+      }
+
+      await Hr.login(email.trim(), password);
+
       const go = loc.state?.from || "/";
       nav(go, { replace: true });
     } catch (e2) {
@@ -23,51 +29,76 @@ export default function Login() {
     }
   }
 
-  return (
-    <div className="card">
-      <div className="h3">Login</div>
-      <p className="muted">შედი ანგარიშზე</p>
-      <div className="muted" style={{ marginBottom: 10 }}>
-  loading: <b>{String(loading)}</b> | token: <b>{String(!!localStorage.getItem("token"))}</b>
-</div>
+  const tokenExists = !!localStorage.getItem("token");
 
-      <form className="form" onSubmit={onSubmit}>
-        <div>
-          <label>Email</label>
+  return (
+    <div style={{ maxWidth: 520, margin: "0 auto", padding: 16 }}>
+      <h2 style={{ margin: "10px 0" }}>Login</h2>
+
+      {/* DEBUG BLOCK */}
+      <div
+        style={{
+          background: "rgba(0,0,0,0.35)",
+          color: "white",
+          padding: 12,
+          borderRadius: 12,
+          marginBottom: 12,
+          fontSize: 13,
+        }}
+      >
+        <div>Hr exists: <b>{String(!!Hr)}</b></div>
+        <div>login type: <b>{typeof Hr?.login}</b></div>
+        <div>loading: <b>{String(Hr?.loading)}</b></div>
+        <div>token in localStorage: <b>{String(tokenExists)}</b></div>
+      </div>
+
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ color: "white", opacity: 0.9 }}>Email</label>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email"
-            autoComplete="email"
+            style={{ padding: 12, borderRadius: 12, border: "1px solid #ccc" }}
           />
         </div>
 
-        <div>
-          <label>Password</label>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ color: "white", opacity: 0.9 }}>Password</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
-            autoComplete="current-password"
+            style={{ padding: 12, borderRadius: 12, border: "1px solid #ccc" }}
           />
         </div>
 
-        {err ? <div className="err">{err}</div> : null}
+        {err ? (
+          <div style={{ color: "#ffb3b3", fontWeight: 700 }}>{err}</div>
+        ) : null}
 
-        <div className="actions">
-          <button className="btn" disabled={loading}>
-            {loading ? "..." : "Login"}
-          </button>
+        <button
+          type="submit"
+          disabled={!!Hr?.loading}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 12,
+            border: "1px solid #111",
+            background: "#111",
+            color: "#fff",
+            fontWeight: 800,
+            cursor: "pointer",
+            opacity: Hr?.loading ? 0.7 : 1,
+          }}
+        >
+          {Hr?.loading ? "..." : "Login"}
+        </button>
 
-          <div className="muted">
-            No account?{" "}
-            <Link to="/register">
-              <b>Register</b>
-            </Link>
-          </div>
+        <div style={{ color: "white", opacity: 0.85 }}>
+          No account? <Link to="/register" style={{ color: "white" }}><b>Register</b></Link>
         </div>
       </form>
     </div>
   );
-}
+    }
