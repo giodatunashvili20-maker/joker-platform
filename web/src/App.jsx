@@ -1,113 +1,75 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { Navigate, Route, Routes, Link, useLocation } from "react-router-dom";
+import { useAuth } from "./auth.jsx";
 
-const API = import.meta.env.VITE_API_URL;
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import Home from "./pages/Home.jsx";
+import Game from "./pages/Game.jsx";
+import Leaderboard from "./pages/Leaderboard.jsx";
 
-async function api(path, { token, method = "GET", body } = {}) {
-  const res = await fetch(`${API}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw data;
-  return data;
+function RequireAuth({ children }) {
+  const { isAuthed, loading } = useAuth();
+  const loc = useLocation();
+
+  if (loading) return <div className="wrap"><div className="card">Loading...</div></div>;
+  if (!isAuthed) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  return children;
 }
 
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [me, setMe] = useState(null);
-  const [mode, setMode] = useState(token ? "profile" : "login");
-  const [form, setForm] = useState({ email: "", username: "", password: "" });
-  const [err, setErr] = useState("");
-
-  useEffect(() => {
-    if (!token) return;
-    api("/me", { token })
-      .then(setMe)
-      .catch(() => {
-        localStorage.removeItem("token");
-        setToken("");
-        setMode("login");
-      });
-  }, [token]);
-
-  async function login() {
-    const out = await api("/auth/login", {
-      method: "POST",
-      body: { email: form.email, password: form.password },
-    });
-    localStorage.setItem("token", out.token);
-    setToken(out.token);
-    setMode("profile");
-  }
-
-  async function register() {
-    const out = await api("/auth/register", {
-      method: "POST",
-      body: { email: form.email, username: form.username, password: form.password },
-    });
-    localStorage.setItem("token", out.token);
-    setToken(out.token);
-    setMode("profile");
-  }
-
-  function logout() {
-    localStorage.removeItem("token");
-    setToken("");
-    setMe(null);
-    setMode("login");
-  }
-
-  if (!API) {
-    return <div style={{ padding: 20 }}>Set VITE_API_URL in Render.</div>;
-  }
+  const { isAuthed, user, logout } = useAuth();
 
   return (
-    <div style={{ maxWidth: 420, margin: "20px auto", fontFamily: "system-ui" }}>
-      <h2>Card Games</h2>
-      
-      {mode !== "profile" && (
-        <div style={{ display: "grid", gap: 8 }}>
-          <input placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })} />
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <div className="logo">♠</div>
+          <div>
+            <div className="title">Card Games</div>
+            <div className="sub">Joker Platform</div>
+          </div>
+        </div>
 
-          {mode === "register" && (
-            <input placeholder="Username"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          )}
-
-          <input type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })} />
-
-          {mode === "login" ? (
+        <nav className="nav">
+          {isAuthed ? (
             <>
-              <button onClick={login}>Login</button>
-              <button onClick={() => setMode("register")}>Register</button>
+              <Link to="/">Home</Link>
+              <Link to="/game">Game</Link>
+              <Link to="/leaderboard">Leaderboard</Link>
+              <button className="btn" onClick={logout}>
+                Logout
+              </button>
             </>
           ) : (
             <>
-              <button onClick={register}>Create account</button>
-              <button onClick={() => setMode("login")}>Back to login</button>
+              <Link to="/login">Login</Link>
+              <Link to="/register">Register</Link>
             </>
           )}
-        </div>
-      )}
+        </nav>
+      </header>
 
-      {mode === "profile" && me && (
-        <div style={{ marginTop: 20 }}>
-          <div><b>{me.username}</b></div>
-          <div>Points: {me.points}</div>
-          <div>Crystals: {me.crystals}</div>
-          <button onClick={logout}>Logout</button>
+      {isAuthed && user ? (
+        <div className="card slim">
+          <div className="row">
+            <div>
+              <div className="h3">{user.username}</div>
+              <div className="muted">Points: <b>{user.points ?? 0}</b> · Crystals: <b>{user.crystals ?? 0}</b></div>
+            </div>
+            <div className="pill">Tier: <b>{user.tier || "beginner"}</b></div>
+          </div>
         </div>
-      )}
+      ) : null}
+
+      <Routes>
+        <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="/game" element={<RequireAuth><Game /></RequireAuth>} />
+        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        <Route path="/login" element={isAuthed ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={isAuthed ? <Navigate to="/" replace /> : <Register />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
-                                    }
+}
