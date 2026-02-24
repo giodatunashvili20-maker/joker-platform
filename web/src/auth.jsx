@@ -1,39 +1,45 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "./api.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-
-  // loading = სანამ აპი ცდილობს გაიგოს უკვე ლოგინში ვართ თუ არა
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let alive = true;
+
     async function loadMe() {
       const token = localStorage.getItem("token");
 
       // თუ token არ არის — უბრალოდ ვასრულებთ boot-ს
       if (!token) {
+        if (!alive) return;
         setUser(null);
         setLoading(false);
         return;
       }
 
       try {
-        // token არის -> ვთხოვთ /me-ს
         const me = await api("/me", { auth: true });
+        if (!alive) return;
         setUser(me);
       } catch (e) {
         // token არასწორია ან expired -> ვშლით
         localStorage.removeItem("token");
+        if (!alive) return;
         setUser(null);
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     }
 
     loadMe();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   async function login(email, password) {
@@ -42,9 +48,9 @@ export function AuthProvider({ children }) {
       body: { email, password },
     });
 
-    // ელოდება რომ backend დააბრუნებს { token, user }
-    localStorage.setItem("token", res.token);
-    setUser(res.user);
+    // backend უნდა აბრუნებდეს { token, user }
+    localStorage.setItem("token", res?.token || "");
+    setUser(res?.user || null);
   }
 
   async function register(email, username, password) {
@@ -53,9 +59,8 @@ export function AuthProvider({ children }) {
       body: { email, username, password },
     });
 
-    // ელოდება რომ backend დააბრუნებს { token, user }
-    localStorage.setItem("token", res.token);
-    setUser(res.user);
+    localStorage.setItem("token", res?.token || "");
+    setUser(res?.user || null);
   }
 
   function logout() {
@@ -63,19 +68,24 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const isAuthed = useMemo(() => {
+    // საკმარისია user არსებობდეს
+    return !!user;
+  }, [user]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthed,
+      login,
+      register,
+      logout,
+    }),
+    [user, loading, isAuthed]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
