@@ -35,22 +35,7 @@ export default function Login() {
     <div style={{ maxWidth: 520, margin: "0 auto", padding: 16 }}>
       <h2 style={{ margin: "10px 0" }}>Login</h2>
 
-      {/* DEBUG BLOCK */}
-      <div
-        style={{
-          background: "rgba(0,0,0,0.35)",
-          color: "white",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 12,
-          fontSize: 13,
-        }}
-      >
-        <div>Hr exists: <b>{String(!!Hr)}</b></div>
-        <div>login type: <b>{typeof Hr?.login}</b></div>
-        <div>loading: <b>{String(Hr?.loading)}</b></div>
-        <div>token in localStorage: <b>{String(tokenExists)}</b></div>
-      </div>
+
 
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "grid", gap: 6 }}>
