@@ -1,150 +1,22 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../auth.jsx";
 import api from "../api.js";
-
-const gamesTabs = [
-  { label: "ჯოკერი", value: "joker" },
-  { label: "ბურა", value: "bura" },
-  { label: "ნარდი", value: "nardi" },
-  { label: "დომინო", value: "domino" },
-];
-
-function Dots({ value = 0 }) {
-  const filled = Math.max(0, Math.min(4, Number(value) || 0));
-  const dots = useMemo(() => Array.from({ length: 4 }, (_, i) => i < filled), [filled]);
-
-  return (
-    <div className="dots">
-      {dots.map((on, i) => (
-        <span key={i} className={`dot ${on ? "on" : ""}`} />
-      ))}
-    </div>
-  );
-}
-
-function Switch({ checked, onChange }) {
-  return (
-    <button
-      type="button"
-      className={`switch ${checked ? "on" : ""}`}
-      onClick={() => onChange(!checked)}
-      aria-label="toggle"
-    >
-      <span className="knob" />
-    </button>
-  );
-}
-
-function GameTabs({ value, onChange }) {
-  return (
-    <div className="tabs">
-      {gamesTabs.map((t) => {
-        const active = t.value === value;
-        return (
-          <button
-            key={t.value}
-            type="button"
-            className={`tab ${active ? "active" : ""}`}
-            onClick={() => onChange(t.value)}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * Mode CTA Card (ერთიანები / ცხრიანები) — ზუსტად “ბლოკებად”
- */
-function ModeCard({
-  title,
-  mode,
-  gameType,
-  inQueue,
-  joining,
-  waiting,
-  lastTakenDeletes,
-  setLastTakenDeletes,
-  onJoin,
-  onLeave,
-  adLabel,
-}) {
-  return (
-    <div className="modeCard">
-      <div className="modeTitle">{title}</div>
-
-      <div className="modeBody">
-        {/* dots / progress bar row */}
-        <div className="modeProgress">
-          <Dots value={waiting} />
-        </div>
-
-        {/* switch row */}
-        <div className="modeRow">
-          <div className="modeRowLeft">ბოლო წაღებული იშლება</div>
-          <div className="modeRowRight">
-            <Switch
-              checked={lastTakenDeletes}
-              onChange={(v) => !inQueue && setLastTakenDeletes(v)}
-            />
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="modeActions">
-          {!inQueue ? (
-            <button
-              type="button"
-              className="btnPrimary"
-              disabled={joining}
-              onClick={() => onJoin({ gameType, mode })}
-            >
-              {joining ? "..." : "Join Queue"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btnGhost"
-              disabled={joining}
-              onClick={() => onLeave({ gameType })}
-            >
-              {joining ? "..." : "Leave Queue"}
-            </button>
-          )}
-        </div>
-
-        {/* footer line */}
-        <div className="modeFooter">
-          <div className="modeHint">ქულები არ გყოფნის?</div>
-          <button type="button" className="chipBtn">
-            {adLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   const { user } = useAuth();
 
-  const [gameType, setGameType] = useState("joker");
-
-  // global joker setting (as in your UI)
+  const [game, setGame] = useState("joker");
   const [lastTakenDeletes, setLastTakenDeletes] = useState(true);
 
-  // queue state (single active queue at a time)
   const [joining, setJoining] = useState(false);
   const [inQueue, setInQueue] = useState(false);
-  const [queueMode, setQueueMode] = useState(null); // "ones" | "nines"
+  const [queueMode, setQueueMode] = useState(null);
   const [waiting, setWaiting] = useState(0);
   const [err, setErr] = useState("");
 
   const deleteScope = lastTakenDeletes ? "last" : "all";
 
-  async function joinQueue({ gameType, mode }) {
+  async function joinQueue(mode) {
     setErr("");
     setJoining(true);
     try {
@@ -152,133 +24,175 @@ export default function Home() {
         method: "POST",
         auth: true,
         body: {
-          gameType, // "joker" | ...
-          mode: gameType === "joker" ? mode : "default",
+          gameType: "joker",
+          mode,
           deleteScope,
         },
       });
 
       setInQueue(true);
-      setQueueMode(gameType === "joker" ? mode : null);
+      setQueueMode(mode);
       setWaiting(res?.waiting ?? 0);
     } catch (e) {
-      setErr(e?.message || "JOIN_FAILED");
-      setInQueue(false);
-      setQueueMode(null);
-      setWaiting(0);
+      setErr(e.message);
     } finally {
       setJoining(false);
     }
   }
 
-  async function leaveQueue({ gameType }) {
-    setErr("");
+  async function leaveQueue() {
     setJoining(true);
     try {
       await api("/matchmaking/leave", {
         method: "POST",
         auth: true,
-        body: { gameType },
+        body: { gameType: "joker" },
       });
+
       setInQueue(false);
       setQueueMode(null);
       setWaiting(0);
     } catch (e) {
-      setErr(e?.message || "LEAVE_FAILED");
+      setErr(e.message);
     } finally {
       setJoining(false);
     }
   }
 
-  return (
-    <div className="home">
-      {/* top small header row */}
-      <div className="homeTop">
-        <div className="homeBrand">Card Games</div>
+  function renderDots(count) {
+    return (
+      <div className="dots">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={`dot ${i < count ? "on" : ""}`} />
+        ))}
+      </div>
+    );
+  }
 
-        <div className="homeStats">
-          <div className="chip">
-            ქულები: <b>{user?.points ?? 0}</b>
+  return (
+    <div className="shell">
+
+      {/* GAME TABS */}
+      <div className="gameTabs">
+        <button
+          className={`gameTab ${game === "joker" ? "active" : ""}`}
+          onClick={() => setGame("joker")}
+        >
+          ჯოკერი
+        </button>
+        <button className="gameTab">ბურა</button>
+        <button className="gameTab">ნარდი</button>
+        <button className="gameTab">დომინო</button>
+      </div>
+
+      {err && <div className="err">{err}</div>}
+
+      {/* === ერთიანები === */}
+      <div className="card">
+        <div className="hd">
+          <h3 className="h3">ერთიანები</h3>
+        </div>
+
+        <div className="bd">
+
+          {renderDots(queueMode === "ones" ? waiting : 0)}
+
+          <div className="switchRow">
+            <span>ბოლო წაღებული იშლება</span>
+            <button
+              className={`toggle ${lastTakenDeletes ? "on" : ""}`}
+              onClick={() =>
+                !inQueue && setLastTakenDeletes(!lastTakenDeletes)
+              }
+            />
           </div>
-          <div className="chip">
-            კრისტალები: <b>{user?.crystals ?? 0}</b>
+
+          {!inQueue || queueMode !== "ones" ? (
+            <button
+              className="btn"
+              disabled={joining}
+              onClick={() => joinQueue("ones")}
+            >
+              {joining ? "..." : "Join Queue"}
+            </button>
+          ) : (
+            <button
+              className="btn"
+              disabled={joining}
+              onClick={leaveQueue}
+            >
+              Leave Queue
+            </button>
+          )}
+
+          <div className="divider" />
+
+          <div className="row">
+            <span className="muted">ქულები არ გყოფნის?</span>
+            <button className="watchBtn">Watch ad 1/10</button>
           </div>
         </div>
       </div>
 
-      {/* game tabs */}
-      <GameTabs
-        value={gameType}
-        onChange={(v) => {
-          setGameType(v);
-          setErr("");
-          // queue reset on game change (like you had)
-          setInQueue(false);
-          setQueueMode(null);
-          setWaiting(0);
-        }}
-      />
-
-      {/* content */}
-      {err ? <div className="err">{err}</div> : null}
-
-      {gameType !== "joker" ? (
-        <div className="glassCard">
-          <div className="modeTitle">
-            {gamesTabs.find((g) => g.value === gameType)?.label}
-          </div>
-          <div className="muted">ამ თამაშის UI მოგვიანებით.</div>
+      {/* === ცხრიანები === */}
+      <div className="card">
+        <div className="hd">
+          <h3 className="h3">ცხრიანები</h3>
         </div>
-      ) : (
-        <>
-          {/* ONES block */}
-          <div className="glassCard">
-            <ModeCard
-              title="ერთიანები"
-              mode="ones"
-              gameType="joker"
-              joining={joining}
-              waiting={queueMode === "ones" ? waiting : 0}
-              inQueue={inQueue && queueMode === "ones"}
-              lastTakenDeletes={lastTakenDeletes}
-              setLastTakenDeletes={setLastTakenDeletes}
-              onJoin={joinQueue}
-              onLeave={leaveQueue}
-              adLabel="Watch ad 1/10"
+
+        <div className="bd">
+
+          {renderDots(queueMode === "nines" ? waiting : 0)}
+
+          <div className="switchRow">
+            <span>ბოლო წაღებული იშლება</span>
+            <button
+              className={`toggle ${lastTakenDeletes ? "on" : ""}`}
+              onClick={() =>
+                !inQueue && setLastTakenDeletes(!lastTakenDeletes)
+              }
             />
           </div>
 
-          {/* NINES block */}
-          <div className="glassCard">
-            <ModeCard
-              title="ცხრიანები"
-              mode="nines"
-              gameType="joker"
-              joining={joining}
-              waiting={queueMode === "nines" ? waiting : 0}
-              inQueue={inQueue && queueMode === "nines"}
-              lastTakenDeletes={lastTakenDeletes}
-              setLastTakenDeletes={setLastTakenDeletes}
-              onJoin={joinQueue}
-              onLeave={leaveQueue}
-              adLabel="Watch ad 1/10"
-            />
-          </div>
+          {!inQueue || queueMode !== "nines" ? (
+            <button
+              className="btn"
+              disabled={joining}
+              onClick={() => joinQueue("nines")}
+            >
+              {joining ? "..." : "Join Queue"}
+            </button>
+          ) : (
+            <button
+              className="btn"
+              disabled={joining}
+              onClick={leaveQueue}
+            >
+              Leave Queue
+            </button>
+          )}
 
-          {/* Shop / crystals block */}
-          <div className="glassCard shopRow">
-            <div className="shopTitle">მაღაზია</div>
-            <div className="shopRight">
-              <div className="chip">
-                კრისტალები: <b>{user?.crystals ?? 0}</b>
-              </div>
-              <button type="button" className="chipBtn">
-                Watch ad 2/5
-              </button>
+          <div className="divider" />
+
+          <div className="row">
+            <span className="muted">ქულები არ გყოფნის?</span>
+            <button className="watchBtn">Watch ad 1/10</button>
+          </div>
+        </div>
+      </div>
+
+      {/* SHOP */}
+      <div className="card slim">
+        <div className="row">
+          <span className="h3">მაღაზია</span>
+          <div className="row">
+            <div className="pill">
+              კრისტალები: <strong>{user?.crystals ?? 0}</strong>
             </div>
+            <button className="watchBtn">Watch ad 2/5</button>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
-  }
+}
