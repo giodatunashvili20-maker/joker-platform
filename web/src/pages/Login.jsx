@@ -19,7 +19,7 @@ export default function Login() {
       const go = loc.state?.from || "/";
       nav(go, { replace: true });
     } catch (e2) {
-      setErr(e2.message || "Login failed");
+      setErr(e2?.message || "Login failed");
     }
   }
 
@@ -31,11 +31,23 @@ export default function Login() {
       <form className="form" onSubmit={onSubmit}>
         <div>
           <label>Email</label>
-          <input value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="email" />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email"
+            autoComplete="email"
+          />
         </div>
+
         <div>
           <label>Password</label>
-          <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="password" />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="password"
+            autoComplete="current-password"
+          />
         </div>
 
         {err ? <div className="err">{err}</div> : null}
@@ -44,11 +56,15 @@ export default function Login() {
           <button className="btn" disabled={loading}>
             {loading ? "..." : "Login"}
           </button>
+
           <div className="muted">
-            No account? <Link to="/register"><b>Register</b></Link>
+            No account?{" "}
+            <Link to="/register">
+              <b>Register</b>
+            </Link>
           </div>
         </div>
       </form>
     </div>
   );
-            }
+}
