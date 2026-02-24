@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { useAuth } from "../auth.jsx";
+import { api } from "../api.js";
 
 const gamesTabs = ["ჯოკერი", "ბურა", "ნარდი", "დომინო"];
 const jokerModes = ["ერთიანები", "ცხრიანები"];
 
-function DotWait({ filled = 2 }) {
+function DotWait({ waiting = 0 }) {
+  // 4 ბურთულა: waiting რაოდენობას ვაკაპებთ 0..4-ზე
+  const filled = Math.max(0, Math.min(4, Number(waiting) || 0));
   const dots = useMemo(() => Array.from({ length: 4 }, (_, i) => i < filled), [filled]);
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -115,10 +118,65 @@ export default function Home() {
   const [gameTab, setGameTab] = useState("ჯოკერი");
   const [jokerTab, setJokerTab] = useState("ერთიანები");
   const [xishte, setXishte] = useState(1);
-  const [deleteAll, setDeleteAll] = useState(false);
 
-  // უბრალოდ UI-სთვის: რამდენი "უცდის" (ბურთულების რაოდენობა)
-  const waitingFilled = jokerTab === "ერთიანები" ? 2 : 3;
+  // switch: ჩართული = "ბოლო წაღებული იშლება" => deleteScope = "last"
+  const [lastTakenDeletes, setLastTakenDeletes] = useState(true);
+
+  // matchmaking UI state
+  const [joining, setJoining] = useState(false);
+  const [inQueue, setInQueue] = useState(false);
+  const [waiting, setWaiting] = useState(0);
+  const [queueTier, setQueueTier] = useState(null);
+  const [err, setErr] = useState("");
+
+  const mode = jokerTab === "ერთიანები" ? "ones" : "nines";
+  const deleteScope = lastTakenDeletes ? "last" : "all";
+
+  async function joinQueue() {
+    setErr("");
+    setJoining(true);
+    try {
+      const r = await api("/matchmaking/join", {
+        method: "POST",
+        body: {
+          gameType: gameTab === "ჯოკერი" ? "joker" : gameTab === "ბურა" ? "bura" : gameTab === "ნარდი" ? "nardi" : "domino",
+          mode: gameTab === "ჯოკერი" ? mode : "default",
+          xishte,
+          deleteScope,
+        },
+        auth: true,
+      });
+      setInQueue(true);
+      setWaiting(r?.waiting ?? 0);
+      setQueueTier(r?.tier ?? null);
+    } catch (e) {
+      setErr(e?.message || "JOIN_FAILED");
+      setInQueue(false);
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function leaveQueue() {
+    setErr("");
+    setJoining(true);
+    try {
+      await api("/matchmaking/leave", {
+        method: "POST",
+        body: {
+          gameType: gameTab === "ჯოკერი" ? "joker" : gameTab === "ბურა" ? "bura" : gameTab === "ნარდი" ? "nardi" : "domino",
+        },
+        auth: true,
+      });
+      setInQueue(false);
+      setWaiting(0);
+      setQueueTier(null);
+    } catch (e) {
+      setErr(e?.message || "LEAVE_FAILED");
+    } finally {
+      setJoining(false);
+    }
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -132,16 +190,27 @@ export default function Home() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>ქულა: <b>{me?.points ?? 0}</b></div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>
+            ქულა: <b>{me?.points ?? 0}</b>
+          </div>
         </div>
       </div>
 
       {/* Main game tabs */}
       <Card>
-        <PillTabs tabs={gamesTabs} value={gameTab} onChange={setGameTab} />
+        <PillTabs
+          tabs={gamesTabs}
+          value={gameTab}
+          onChange={(t) => {
+            setGameTab(t);
+            setInQueue(false);
+            setWaiting(0);
+            setQueueTier(null);
+            setErr("");
+          }}
+        />
       </Card>
 
-      {/* If not Joker - placeholder */}
       {gameTab !== "ჯოკერი" ? (
         <Card>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>{gameTab}</div>
@@ -151,11 +220,19 @@ export default function Home() {
         <>
           {/* Joker mode tabs */}
           <Card>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div style={{ fontWeight: 900 }}>რეჟიმი</div>
-            </div>
+            <div style={{ fontWeight: 900 }}>რეჟიმი</div>
             <div style={{ marginTop: 10 }}>
-              <PillTabs tabs={jokerModes} value={jokerTab} onChange={setJokerTab} />
+              <PillTabs
+                tabs={jokerModes}
+                value={jokerTab}
+                onChange={(t) => {
+                  setJokerTab(t);
+                  setInQueue(false);
+                  setWaiting(0);
+                  setQueueTier(null);
+                  setErr("");
+                }}
+              />
             </div>
           </Card>
 
@@ -163,7 +240,7 @@ export default function Home() {
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <div style={{ fontWeight: 900 }}>{jokerTab}</div>
-              <DotWait filled={waitingFilled} />
+              <DotWait waiting={waiting} />
             </div>
 
             <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
@@ -172,6 +249,7 @@ export default function Home() {
                 right={
                   <select
                     value={xishte}
+                    disabled={inQueue}
                     onChange={(e) => setXishte(Number(e.target.value))}
                     style={{
                       padding: "10px 12px",
@@ -179,6 +257,7 @@ export default function Home() {
                       border: "1px solid #E6E6E6",
                       fontWeight: 700,
                       background: "#fff",
+                      opacity: inQueue ? 0.6 : 1,
                     }}
                   >
                     <option value={1}>1</option>
@@ -190,24 +269,60 @@ export default function Home() {
 
               <Row
                 left="ბოლო წაღებული იშლება"
-                right={<Switch checked={!deleteAll} onChange={(v) => setDeleteAll(!v)} />}
+                right={
+                  <div style={{ opacity: inQueue ? 0.6 : 1 }}>
+                    <Switch checked={lastTakenDeletes} onChange={(v) => !inQueue && setLastTakenDeletes(v)} />
+                  </div>
+                }
               />
 
+              {queueTier ? (
+                <div style={{ fontSize: 12, opacity: 0.75 }}>
+                  Tier: <b>{queueTier}</b>
+                </div>
+              ) : null}
+
+              {err ? <div style={{ color: "crimson", fontWeight: 700 }}>{err}</div> : null}
+
               <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  style={{
-                    flex: 1,
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid #111",
-                    background: "#111",
-                    color: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  თამაში
-                </button>
+                {!inQueue ? (
+                  <button
+                    disabled={joining}
+                    onClick={joinQueue}
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid #111",
+                      background: "#111",
+                      color: "#fff",
+                      fontWeight: 900,
+                      cursor: joining ? "not-allowed" : "pointer",
+                      opacity: joining ? 0.7 : 1,
+                    }}
+                  >
+                    {joining ? "შეყვანა..." : "თამაში"}
+                  </button>
+                ) : (
+                  <button
+                    disabled={joining}
+                    onClick={leaveQueue}
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid #E6E6E6",
+                      background: "#fff",
+                      color: "#111",
+                      fontWeight: 900,
+                      cursor: joining ? "not-allowed" : "pointer",
+                      opacity: joining ? 0.7 : 1,
+                    }}
+                  >
+                    {joining ? "გასვლა..." : "გასვლა"}
+                  </button>
+                )}
+
                 <button
                   style={{
                     padding: "12px 14px",
@@ -224,7 +339,7 @@ export default function Home() {
             </div>
           </Card>
 
-          {/* Watch ads for points (same style as mock) */}
+          {/* Watch ads for points */}
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <div>
@@ -275,4 +390,4 @@ export default function Home() {
       )}
     </div>
   );
-                 }
+      }
