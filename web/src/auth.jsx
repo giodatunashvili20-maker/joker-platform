@@ -1,86 +1,67 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import api from "./api";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import api from "./api.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("token") || "");
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const isAuthed = !!token;
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const me = await api("/me", { auth: true });
+        setUser(me);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  async function refreshMe(t = token) {
-    if (!t) {
-      setUser(null);
-      return;
-    }
-    setLoading(true);
-    try {
-      const me = await api.me(t);
-      setUser(me);
-    } catch (e) {
-      // ტოკენი ცუდია/დაიძველა
-      localStorage.removeItem("token");
-      setToken("");
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+    loadMe();
+  }, []);
 
   async function login(email, password) {
-    setLoading(true);
-    try {
-      const data = await api.login({ email, password });
-      // backend აბრუნებს {token}
-      const t = data?.token;
-      if (!t) throw new Error("Token missing");
-      localStorage.setItem("token", t);
-      setToken(t);
-      await refreshMe(t);
-      return true;
-    } finally {
-      setLoading(false);
-    }
+    const res = await api("/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
+
+    localStorage.setItem("token", res.token);
+    setUser(res.user);
   }
 
   async function register(email, username, password) {
-    setLoading(true);
-    try {
-      const data = await api.register({ email, username, password });
-      const t = data?.token;
-      if (!t) throw new Error("Token missing");
-      localStorage.setItem("token", t);
-      setToken(t);
-      await refreshMe(t);
-      return true;
-    } finally {
-      setLoading(false);
-    }
+    const res = await api("/auth/register", {
+      method: "POST",
+      body: { email, username, password },
+    });
+
+    localStorage.setItem("token", res.token);
+    setUser(res.user);
   }
 
   function logout() {
     localStorage.removeItem("token");
-    setToken("");
     setUser(null);
   }
 
-  useEffect(() => {
-    refreshMe(token);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const value = useMemo(
-    () => ({ token, user, isAuthed, loading, login, register, logout, refreshMe }),
-    [token, user, isAuthed, loading]
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        loading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
-}
+  return useContext(AuthContext);
+    }
