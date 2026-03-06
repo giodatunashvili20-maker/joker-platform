@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 
 export default function Login() {
-  const Hr = useAuth(); // სპეციალურად Hr დავარქვი რომ დავინახოთ რას აბრუნებს
+  const Hr = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
 
@@ -15,9 +15,8 @@ export default function Login() {
     e.preventDefault();
     setErr("");
     try {
-      // debug
       if (!Hr || typeof Hr.login !== "function") {
-        throw new Error("Hr.login is not a function (AuthProvider/useAuth არ მუშაობს სწორად)");
+        throw new Error("Hr.login is not a function");
       }
 
       await Hr.login(email.trim(), password);
@@ -29,13 +28,9 @@ export default function Login() {
     }
   }
 
-  const tokenExists = !!localStorage.getItem("token");
-
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: 16 }}>
       <h2 style={{ margin: "10px 0" }}>Login</h2>
-
-
 
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "grid", gap: 6 }}>
@@ -81,9 +76,68 @@ export default function Login() {
         </button>
 
         <div style={{ color: "white", opacity: 0.85 }}>
-          No account? <Link to="/register" style={{ color: "white" }}><b>Register</b></Link>
+          No account?{" "}
+          <Link to="/register" style={{ color: "white" }}>
+            <b>Register</b>
+          </Link>
         </div>
       </form>
+
+      {/* HEALTH TEST */}
+      <button
+        onClick={async () => {
+          try {
+            const r = await fetch("https://joker-platform.onrender.com/health");
+            const t = await r.text();
+            alert(`health ok: ${r.status} ${t}`);
+          } catch (e) {
+            alert(`health failed: ${e.message}`);
+          }
+        }}
+        style={{
+          marginTop: 20,
+          padding: 10,
+          borderRadius: 10,
+          background: "#444",
+          color: "white",
+          border: "none",
+        }}
+      >
+        Test Backend Health
+      </button>
+
+      {/* LOGIN FETCH TEST */}
+      <button
+        onClick={async () => {
+          try {
+            const r = await fetch(
+              "https://joker-platform.onrender.com/auth/login",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  email: "test@test.com",
+                  password: "123456",
+                }),
+              }
+            );
+            const t = await r.text();
+            alert(`login response: ${r.status} ${t}`);
+          } catch (e) {
+            alert(`login failed: ${e.message}`);
+          }
+        }}
+        style={{
+          marginTop: 10,
+          padding: 10,
+          borderRadius: 10,
+          background: "#666",
+          color: "white",
+          border: "none",
+        }}
+      >
+        Test Login Fetch
+      </button>
     </div>
   );
-    }
+}
