@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import { pool } from "../db.js";
 import { signToken } from "../middleware/auth.js";
+import { getRankName } from "../config/economy.js";
 
 const router = Router();
 
