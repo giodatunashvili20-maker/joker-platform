@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
-import { getRankName, xpProgress } from "../config/economy.js";
+import { getRankName, xpProgress, tierForLevel } from "../config/economy.js";
 
 const router = Router();
 
