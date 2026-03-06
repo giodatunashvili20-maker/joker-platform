@@ -1,5 +1,5 @@
 const BASE =
-  import.meta.env.VITE_API_BASE || "https://joker-platform.onrender.com";
+  import.meta.env.VITE_API_URL || "https://joker-platform.onrender.com";
 
 export default async function api(path, opts = {}) {
   const {
