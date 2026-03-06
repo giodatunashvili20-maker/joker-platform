@@ -1,0 +1,281 @@
+:root{
+  --bg1:#0b1a3a;
+  --bg2:#0a2a55;
+  --panel:#0b1530cc;
+  --stroke:#ffffff1a;
+  --text:#eaf2ff;
+  --muted:#9db2d6;
+  --accent:#4aa3ff;
+  --accent2:#2d6cff;
+  --good:#3dff77;
+  --shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+
+.gs-stage{
+  min-height: calc(100vh - 48px);
+  position: relative;
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(1200px 700px at 55% 55%, rgba(46,140,255,.20), transparent 60%),
+    radial-gradient(900px 600px at 30% 10%, rgba(80,170,255,.12), transparent 60%),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+  overflow: hidden;
+}
+
+/* Scoreboard */
+.gs-scoreboard{
+  position:absolute;
+  top:16px;
+  left:16px;
+  width:min(540px, calc(100vw - 190px));
+  background: var(--panel);
+  border:1px solid var(--stroke);
+  border-radius:16px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 55px rgba(0,0,0,.35);
+  z-index: 20;
+}
+
+.gs-scoreboard-title{
+  padding: 10px 12px 6px;
+  font-weight: 800;
+  color: var(--text);
+}
+.gs-scoreboard-sub{ color: rgba(234,242,255,.65); font-weight:700; font-size: 12px; }
+
+.gs-scoreboard-wrap{ padding: 6px 10px 10px; }
+
+.gs-table{ width:100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.gs-table th, .gs-table td{ padding: 8px 6px; text-align: center; }
+.gs-table thead th{
+  color: rgba(234,242,255,.85);
+  font-weight: 800;
+  border-bottom: 1px solid var(--stroke);
+}
+.gs-table .col-deal{ width: 52px; color: rgba(234,242,255,.85); font-weight: 900; }
+.gs-table tbody td{ border-bottom: 1px solid rgba(255,255,255,.06); color: rgba(234,242,255,.65); }
+.cell-muted{ color: rgba(234,242,255,.55); }
+.gs-table tfoot td{
+  border-top: 1px solid var(--stroke);
+  background: rgba(0,0,0,.16);
+}
+.cell-total{ color: var(--good); font-weight: 900; }
+
+/* Actions */
+.gs-actions{
+  position:absolute;
+  top:16px;
+  right:16px;
+  display:flex;
+  gap:12px;
+  z-index: 25;
+}
+.gs-iconBtn{
+  width:44px; height:44px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+  font-size: 18px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.30);
+}
+
+/* Joker card */
+.gs-jokerCard{
+  position:absolute;
+  top:78px;
+  right:18px;
+  width:86px;
+  height:122px;
+  border-radius:14px;
+  background: linear-gradient(#fff,#f4f6ff);
+  border:1px solid rgba(0,0,0,.18);
+  box-shadow: var(--shadow);
+  z-index: 22;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#0a1b3f;
+  font-weight: 900;
+}
+.gs-jokerCard .pip{ position:absolute; top:10px; left:10px; }
+.gs-jokerCard .pip2{ top:auto; left:auto; bottom:10px; right:10px; transform: rotate(180deg); }
+.gs-jokerCard .mid{ font-size: 12px; letter-spacing: .12em; opacity:.9; }
+
+/* Table + brand */
+.gs-tableWrap{
+  position:absolute;
+  left:50%;
+  top:52%;
+  transform: translate(-50%,-50%);
+  width:min(900px, 92vw);
+  height:min(520px, 48vh);
+  z-index: 10;
+}
+
+.gs-oval{
+  position:absolute;
+  inset:0;
+  border-radius:999px;
+  background:
+    radial-gradient(120% 90% at 50% 35%, rgba(255,255,255,.10), transparent 60%),
+    radial-gradient(120% 110% at 50% 90%, rgba(74,163,255,.10), transparent 55%),
+    linear-gradient(180deg, rgba(20,40,85,.92), rgba(10,20,46,.96));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 30px 100px rgba(0,0,0,.55);
+  overflow:hidden;
+}
+.gs-oval:before{
+  content:"";
+  position:absolute;
+  inset:-18px;
+  border-radius:999px;
+  background:
+    radial-gradient(closest-side, rgba(74,163,255,.18), transparent 65%),
+    radial-gradient(closest-side, rgba(45,108,255,.16), transparent 72%);
+  filter: blur(12px);
+  opacity:.95;
+}
+.gs-oval:after{
+  content:"";
+  position:absolute;
+  inset:10px;
+  border-radius:999px;
+  border: 2px solid rgba(74,163,255,.55);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.08) inset,
+    0 0 35px rgba(74,163,255,.35);
+  opacity:.9;
+}
+
+.gs-brand{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  pointer-events:none;
+}
+.gs-logoMark{
+  width:44px; height:44px;
+  border-radius:14px;
+  background: linear-gradient(135deg, rgba(74,163,255,.95), rgba(45,108,255,.85));
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+  position:relative;
+}
+.gs-logoMark:before{
+  content:"";
+  position:absolute;
+  inset:10px;
+  border-radius:999px;
+  border:2px solid rgba(255,255,255,.85);
+  opacity:.85;
+}
+.gs-logoText{
+  font-size: clamp(24px, 4vw, 44px);
+  font-weight: 900;
+  letter-spacing: .02em;
+  text-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.gs-logoText span{ color: var(--accent); }
+
+/* Players (no me avatar) */
+.gs-player{
+  position:absolute;
+  z-index: 18;
+  display:flex;
+  flex-direction: column;
+  align-items:center;
+  gap:8px;
+  pointer-events:none;
+}
+.gs-avatar{
+  width:76px; height:76px;
+  border-radius:999px;
+  border:2px solid rgba(74,163,255,.6);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,.22), transparent 55%),
+    linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.25));
+  display:grid;
+  place-items:center;
+  font-weight: 900;
+  font-size: 26px;
+  color: rgba(234,242,255,.95);
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+}
+.gs-nameplate{
+  padding: 7px 12px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.28);
+  backdrop-filter: blur(6px);
+  color: rgba(234,242,255,.92);
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.25);
+}
+.gs-top{ left:50%; top: calc(52% - min(520px,48vh)/2 - 66px); transform: translateX(-50%); }
+.gs-left{ left: calc(50% - min(900px,92vw)/2 - 98px); top:52%; transform: translateY(-50%); }
+.gs-right{ right: calc(50% - min(900px,92vw)/2 - 98px); top:52%; transform: translateY(-50%); }
+
+/* Chat bubble */
+.gs-chat{
+  position:absolute;
+  left:16px;
+  bottom:18px;
+  width:52px; height:52px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+  box-shadow: 0 14px 40px rgba(0,0,0,.30);
+  z-index: 25;
+  font-size: 20px;
+}
+
+/* Hand */
+.gs-hand{
+  position:absolute;
+  left:50%;
+  bottom:18px;
+  transform: translateX(-50%);
+  display:flex;
+  gap:10px;
+  z-index: 24;
+}
+.gs-card{
+  width:64px;
+  height:92px;
+  border-radius:12px;
+  background: linear-gradient(#fff,#f4f6ff);
+  border:1px solid rgba(0,0,0,.18);
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  position:relative;
+  overflow:hidden;
+}
+.gs-card .r{
+  position:absolute; top:10px; left:10px;
+  font-weight:900; font-size:18px;
+  color:#101a38;
+}
+.gs-card .s{
+  position:absolute; top:34px; left:10px;
+  font-size: 16px;
+  color:#101a38;
+}
+.gs-card .r2{ bottom:10px; right:10px; top:auto; left:auto; transform: rotate(180deg); }
+.gs-card .s2{ bottom:34px; right:10px; top:auto; left:auto; transform: rotate(180deg); }
+
+@media (max-width: 900px){
+  .gs-scoreboard{ width: min(520px, calc(100vw - 40px)); }
+  .gs-left{ left: 10px; }
+  .gs-right{ right: 10px; }
+  .gs-card{ width:56px; height:84px; }
+  .gs-jokerCard{ width:74px; height:108px; }
+}
+@media (max-width: 520px){
+  .gs-nameplate{ display:none; }
+  .gs-hand{ gap:8px; }
+}
