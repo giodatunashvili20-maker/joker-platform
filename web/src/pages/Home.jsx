@@ -11,7 +11,10 @@ export default function Home() {
   const pollRef = useRef(null);
 
   const [game, setGame] = useState("joker");
-  const [lastTakenDeletes, setLastTakenDeletes] = useState(true);
+
+  // ცალ-ცალკე სვიჩები
+  const [onesLastTakenDeletes, setOnesLastTakenDeletes] = useState(true);
+  const [ninesLastTakenDeletes, setNinesLastTakenDeletes] = useState(true);
 
   const [joining, setJoining] = useState(false);
   const [inQueue, setInQueue] = useState(false);
@@ -19,59 +22,59 @@ export default function Home() {
   const [waiting, setWaiting] = useState(0);
   const [err, setErr] = useState("");
 
-  const deleteScope = lastTakenDeletes ? "last" : "all";
-
-
-// Poll matchmaking status while user is in queue
-useEffect(() => {
-  if (!inQueue) {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-    return;
-  }
-
-  let stopped = false;
-
-  async function tick() {
-    try {
-      const st = await api("/matchmaking/status", { method: "GET", auth: true });
-      if (stopped) return;
-
-      if (st?.state === "matched" && st?.match?.id) {
-        // stop polling and redirect to game
-        setInQueue(false);
-        setQueueMode(null);
-        setWaiting(0);
-        if (pollRef.current) clearInterval(pollRef.current);
-        pollRef.current = null;
-        navigate(`/game?matchId=${encodeURIComponent(st.match.id)}`);
-        return;
-      }
-
-      if (st?.state === "idle") {
-        // server says you're not in queue anymore
-        setInQueue(false);
-        setQueueMode(null);
-        setWaiting(0);
-      }
-    } catch (e) {
-      // ignore transient errors; keep polling
+  useEffect(() => {
+    if (!inQueue) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+      return;
     }
-  }
 
-  tick();
-  pollRef.current = setInterval(tick, 1500);
+    let stopped = false;
 
-  return () => {
-    stopped = true;
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-  };
-}, [inQueue, navigate]);
+    async function tick() {
+      try {
+        const st = await api("/matchmaking/status", { method: "GET", auth: true });
+        if (stopped) return;
+
+        if (st?.state === "matched" && st?.match?.id) {
+          setInQueue(false);
+          setQueueMode(null);
+          setWaiting(0);
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          navigate(`/game?matchId=${encodeURIComponent(st.match.id)}`);
+          return;
+        }
+
+        if (st?.state === "idle") {
+          setInQueue(false);
+          setQueueMode(null);
+          setWaiting(0);
+        }
+      } catch (e) {
+        // ignore transient errors
+      }
+    }
+
+    tick();
+    pollRef.current = setInterval(tick, 1500);
+
+    return () => {
+      stopped = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [inQueue, navigate]);
 
   async function joinQueue(mode) {
     setErr("");
     setJoining(true);
+
+    const deleteScope =
+      mode === "ones"
+        ? (onesLastTakenDeletes ? "last" : "all")
+        : (ninesLastTakenDeletes ? "last" : "all");
+
     try {
       const res = await api("/matchmaking/join", {
         method: "POST",
@@ -124,41 +127,50 @@ useEffect(() => {
 
   return (
     <div className="shell">
-
-      
-
-      <div className="card" style={{marginBottom:16}}>
-        <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap"}}>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{fontWeight:800}}>Daily Ads</div>
-            <div style={{opacity:.75, fontSize:13}}>Demo buttons. In production, call claim only after a rewarded ad completes.</div>
+            <div style={{ fontWeight: 800 }}>Daily Ads</div>
+            <div style={{ opacity: 0.75, fontSize: 13 }}>
+              Demo buttons. In production, call claim only after a rewarded ad completes.
+            </div>
           </div>
-          <div style={{display:"flex", gap:10, flexWrap:"wrap"}}>
-            <button className="btn" onClick={async () => {
-              try {
-                const ad = await showRewardedAd();
-                if (!ad.ok) throw new Error("Ad not completed");
-                const r = await api("/ads/points/claim", { method:"POST", auth:true });
-                alert(`+${r.reward} points (used ${r.used}/${r.limit})`);
-              } catch (e) {
-                alert(e?.message || "Ad reward failed");
-              }
-            }}>Watch Ad • Points</button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              className="btn"
+              onClick={async () => {
+                try {
+                  const ad = await showRewardedAd();
+                  if (!ad.ok) throw new Error("Ad not completed");
+                  const r = await api("/ads/points/claim", { method: "POST", auth: true });
+                  alert(`+${r.reward} points (used ${r.used}/${r.limit})`);
+                } catch (e) {
+                  alert(e?.message || "Ad reward failed");
+                }
+              }}
+            >
+              Watch Ad • Points
+            </button>
 
-            <button className="btn" onClick={async () => {
-              try {
-                const ad = await showRewardedAd();
-                if (!ad.ok) throw new Error("Ad not completed");
-                const r = await api("/ads/crystals/claim", { method:"POST", auth:true });
-                alert(`+${r.reward} crystal (used ${r.used}/${r.limit})`);
-              } catch (e) {
-                alert(e?.message || "Ad reward failed");
-              }
-            }}>Watch Ad • Crystals</button>
+            <button
+              className="btn"
+              onClick={async () => {
+                try {
+                  const ad = await showRewardedAd();
+                  if (!ad.ok) throw new Error("Ad not completed");
+                  const r = await api("/ads/crystals/claim", { method: "POST", auth: true });
+                  alert(`+${r.reward} crystal (used ${r.used}/${r.limit})`);
+                } catch (e) {
+                  alert(e?.message || "Ad reward failed");
+                }
+              }}
+            >
+              Watch Ad • Crystals
+            </button>
           </div>
         </div>
       </div>
-{/* GAME TABS */}
+
       <div className="gameTabs">
         <button
           className={`gameTab ${game === "joker" ? "active" : ""}`}
@@ -173,23 +185,20 @@ useEffect(() => {
 
       {err && <div className="err">{err}</div>}
 
-      {/* === ერთიანები === */}
+      {/* ერთიანები */}
       <div className="card">
         <div className="hd">
           <h3 className="h3">ერთიანები</h3>
         </div>
 
         <div className="bd">
-
           {renderDots(queueMode === "ones" ? waiting : 0)}
 
           <div className="switchRow">
             <span>ბოლო წაღებული იშლება</span>
             <button
-              className={`toggle ${lastTakenDeletes ? "on" : ""}`}
-              onClick={() =>
-                !inQueue && setLastTakenDeletes(!lastTakenDeletes)
-              }
+              className={`toggle ${onesLastTakenDeletes ? "on" : ""}`}
+              onClick={() => !inQueue && setOnesLastTakenDeletes(!onesLastTakenDeletes)}
             />
           </div>
 
@@ -220,23 +229,20 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* === ცხრიანები === */}
+      {/* ცხრიანები */}
       <div className="card">
         <div className="hd">
           <h3 className="h3">ცხრიანები</h3>
         </div>
 
         <div className="bd">
-
           {renderDots(queueMode === "nines" ? waiting : 0)}
 
           <div className="switchRow">
             <span>ბოლო წაღებული იშლება</span>
             <button
-              className={`toggle ${lastTakenDeletes ? "on" : ""}`}
-              onClick={() =>
-                !inQueue && setLastTakenDeletes(!lastTakenDeletes)
-              }
+              className={`toggle ${ninesLastTakenDeletes ? "on" : ""}`}
+              onClick={() => !inQueue && setNinesLastTakenDeletes(!ninesLastTakenDeletes)}
             />
           </div>
 
@@ -267,7 +273,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* SHOP */}
       <div className="card slim">
         <div className="row">
           <span className="h3">მაღაზია</span>
@@ -281,4 +286,4 @@ useEffect(() => {
       </div>
     </div>
   );
-}
+          }
