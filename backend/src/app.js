@@ -15,7 +15,16 @@ import roomsRoutes from "./routes/rooms.routes.js";
 import matchesRoutes from "./routes/matches.routes.js";
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: [
+    "https://joker-platform-1.onrender.com",
+    "http://localhost:5173"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
 app.use(express.json());
 
 app.get("/health", (_, res) => res.json({ ok: true }));
