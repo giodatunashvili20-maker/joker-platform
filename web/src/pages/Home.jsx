@@ -22,6 +22,13 @@ export default function Home() {
   const [waiting, setWaiting] = useState(0);
   const [err, setErr] = useState("");
 
+  // ახალი state რეალური queue count-ებისთვის
+  const [queueCounts, setQueueCounts] = useState({
+    ones: 0,
+    nines: 0,
+  });
+
+  // Match status polling (თუ თვითონ ხარ queue-ში)
   useEffect(() => {
     if (!inQueue) {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -46,6 +53,10 @@ export default function Home() {
           return;
         }
 
+        if (st?.state === "waiting") {
+          setWaiting(st?.waiting ?? 1);
+        }
+
         if (st?.state === "idle") {
           setInQueue(false);
           setQueueMode(null);
@@ -65,6 +76,34 @@ export default function Home() {
       pollRef.current = null;
     };
   }, [inQueue, navigate]);
+
+  // Queue count polling — ყოველ წამს განახლდება
+  useEffect(() => {
+    let stopped = false;
+
+    async function tickCounts() {
+      try {
+        const counts = await api("/matchmaking/counts", { method: "GET" });
+
+        if (!stopped) {
+          setQueueCounts({
+            ones: counts?.ones ?? 0,
+            nines: counts?.nines ?? 0,
+          });
+        }
+      } catch (e) {
+        // ignore temporary errors
+      }
+    }
+
+    tickCounts();
+    const id = setInterval(tickCounts, 1000);
+
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, []);
 
   async function joinQueue(mode) {
     setErr("");
@@ -128,13 +167,22 @@ export default function Home() {
   return (
     <div className="shell">
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
             <div style={{ fontWeight: 800 }}>Daily Ads</div>
             <div style={{ opacity: 0.75, fontSize: 13 }}>
               Demo buttons. In production, call claim only after a rewarded ad completes.
             </div>
           </div>
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               className="btn"
@@ -192,7 +240,7 @@ export default function Home() {
         </div>
 
         <div className="bd">
-          {renderDots(queueMode === "ones" ? waiting : 0)}
+          {renderDots(queueCounts.ones)}
 
           <div className="switchRow">
             <span>ბოლო წაღებული იშლება</span>
@@ -236,7 +284,7 @@ export default function Home() {
         </div>
 
         <div className="bd">
-          {renderDots(queueMode === "nines" ? waiting : 0)}
+          {renderDots(queueCounts.nines)}
 
           <div className="switchRow">
             <span>ბოლო წაღებული იშლება</span>
@@ -286,4 +334,4 @@ export default function Home() {
       </div>
     </div>
   );
-          }
+}
