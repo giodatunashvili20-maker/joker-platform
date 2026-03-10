@@ -37,6 +37,11 @@ jobs:
           cd web
           npm install @capacitor/android
 
+      - name: Add Android platform
+        run: |
+          cd web
+          npx cap add android
+
       - name: Sync Android
         run: |
           cd web
