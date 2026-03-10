@@ -22,6 +22,11 @@ jobs:
           cd web
           npm install
 
+      - name: Install TypeScript
+        run: |
+          cd web
+          npm install -D typescript
+
       - name: Build web
         run: |
           cd web
