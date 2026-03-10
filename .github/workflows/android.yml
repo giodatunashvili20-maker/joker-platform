@@ -16,25 +16,34 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install web dependencies
+        run: |
+          cd web
+          npm install
 
       - name: Build web
-        run: npm run build
+        run: |
+          cd web
+          npm run build
 
-      - name: Install Capacitor
-        run: npm install @capacitor/android
+      - name: Install Capacitor Android
+        run: |
+          cd web
+          npm install @capacitor/android
 
       - name: Sync Android
-        run: npx cap sync android
+        run: |
+          cd web
+          npx cap sync android
 
       - name: Build APK
         run: |
-          cd android
+          cd web/android
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: app-debug1
-          path: android/app/build/outputs/apk/debug/app-debug1.apk
+          name: joker-apk
+          path: web/android/app/build/outputs/apk/debug/app-debug.apk
